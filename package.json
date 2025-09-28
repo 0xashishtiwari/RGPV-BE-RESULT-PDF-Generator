@@ -1,0 +1,21 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+   "type": "module", 
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jimp": "^0.16.1",
+    "pdfkit": "^0.17.2",
+    "puppeteer": "^24.22.3",
+    "tesseract.js": "^6.0.1"
+  }
+}
