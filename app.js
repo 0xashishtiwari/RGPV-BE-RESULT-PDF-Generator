@@ -1,7 +1,7 @@
 import main from './pdf/generatepdf.js'
 
-const startRoll = "0105CS221002";
-const endRoll = "0105CS221002";
+const startRoll = "0105CS221XXX";
+const endRoll = "0105CS221XXX";
 const semester = "6";
 
 (async () => {
