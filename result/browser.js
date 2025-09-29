@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer'
 import solveCaptcha from './captcha-solver.js'
 import imageEnhancer from './image-enhancer.js'
+import chalk from 'chalk';
 
 
 
@@ -20,16 +21,17 @@ const create = async (enrollmentNumber, semester) => {
     let alertDetected = false;
 
     page.on("dialog", async (dialog) => {
-      console.log("Alert detected:", dialog.message());
+      // console.log("Alert detected:", dialog.message());
       if (dialog.message().includes("Result for this Enrollment No. not Found")) {
         alertDetected = true;
         await dialog.accept();
-        console.log("Result not found alert closed.");
-        console.log("Browser closed.");
+        // console.log("Result not found alert closed.");
+        // console.log("Browser closed.");
+        console.log(chalk.red.bold(`${enrollmentNumber} result does not exist`));
         browser.close();
       } else {
         await dialog.accept();
-        console.log("Other alert closed");
+        // console.log("Other alert closed");
       }
     });
 
@@ -58,14 +60,15 @@ const create = async (enrollmentNumber, semester) => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       if (alertDetected) return null;
 
-      console.log(`\nCaptcha Attempt ${attempt}`);
+      // console.log(`\nCaptcha Attempt ${attempt}`);
+      // console.log(chalk.yellowBright(`Attempting to solve captcha: ${attempt}`));
       await page.waitForSelector(captchaSelector, { visible: true, timeout: 10000 });
       const captchaElement = await page.$(captchaSelector);
       const captchaBuffer = await captchaElement.screenshot();
       const enhancedImage = await imageEnhancer(captchaBuffer);
       let captchaValue = await solveCaptcha(enhancedImage);
       captchaValue = captchaValue.replace(/\s+/g, "");
-      console.log("OCR Captcha:", captchaValue);
+      // console.log("OCR Captcha:", captchaValue);
 
       await page.focus(captchaInputSelector);
       await page.click(captchaInputSelector, { clickCount: 3 });
@@ -131,21 +134,23 @@ const create = async (enrollmentNumber, semester) => {
 
         break;
       } catch (err) {
-        console.log("Captcha wrong or timeout, retrying...");
+        // console.log("Captcha wrong or timeout, retrying...");
+        // console.log(chalk.bgBlue(`Retrying to solve`));
         await delay(200);
       }
     }
 
     // console.log("\nFinal Data:", finalData);
+    console.log(chalk.green(`${enrollmentNumber} result fetched sucessfully`));
     return finalData;
 
   } catch (error) {
-    console.error("Error occurred:", error);
+    console.error(chalk.red("Error occurred in fetching result"));
     return null;
   } finally {
     if (browser) {
       await browser.close();
-      console.log("Browser closed.");
+      // console.log("Browser closed.");
     }
   }
 };

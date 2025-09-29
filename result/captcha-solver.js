@@ -6,11 +6,13 @@ async function solveCaptcha(captchaBuffer) {
     const { data: { text } } = await Tesseract.recognize(
     //   path.join(__dirname, 'image.png'),
     captchaBuffer,
-      'eng'
+      'eng',{
+      tessedit_char_whitelist: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    }
     );
     const value = text.trim().replace(/\s+/g, '').toLocaleLowerCase();
 
-    console.log("OCR Result:", value);
+    // console.log("OCR Result:", value);
     return value;
   } catch (err) {
     console.error(err);

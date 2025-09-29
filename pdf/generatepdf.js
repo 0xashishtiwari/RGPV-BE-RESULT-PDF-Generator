@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import create from "../result/browser.js";
 import fs from "fs";
 import PDFDocument from "pdfkit";
@@ -76,7 +77,7 @@ async function generateSpreadsheetPDF(allStudents, filePath) {
   });
 
   doc.end();
-  console.log(`Spreadsheet PDF saved to ${filePath}`);
+  console.log(chalk.greenBright(`Spreadsheet PDF saved to ${filePath}`));
 }
 
 async function main(startRoll, endRoll, semester) {
@@ -84,7 +85,7 @@ async function main(startRoll, endRoll, semester) {
   const allStudents = [];
 
   for (const roll of studentsRolls) {
-    console.log("Fetching:", roll);
+    console.log(chalk.yellow("Fetching:", roll));
     try {
       const data = await create(roll, semester);
       if (!data || !data.name) {
@@ -99,7 +100,7 @@ async function main(startRoll, endRoll, semester) {
         allStudents.push(data);
       }
     } catch (err) {
-      console.log("Failed to fetch data for", roll, err);
+      console.log(chalk.red("Failed to fetch data for", roll, err));
       allStudents.push({
         rollNo: roll,
         subjects: [],
