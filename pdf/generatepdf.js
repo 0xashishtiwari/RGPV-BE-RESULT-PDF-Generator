@@ -2,7 +2,7 @@ import chalk from "chalk";
 import create from "../result/browser.js";
 import fs from "fs";
 import PDFDocument from "pdfkit";
-
+let semval =0;
 function generateRollNumbers(startRoll, endRoll) {
   const prefix = startRoll.slice(0, -3);
   const startNum = parseInt(startRoll.slice(-3));
@@ -15,56 +15,113 @@ function generateRollNumbers(startRoll, endRoll) {
 }
 
 async function generateSpreadsheetPDF(allStudents, filePath) {
-  const margin = 0.1; // 0.1 inch in points
-  const doc = new PDFDocument({ margin: margin, size: "A4", layout: "portrait" });
+  const doc = new PDFDocument({ margin: 36, size: "A4", layout: "landscape" });
   doc.pipe(fs.createWriteStream(filePath));
 
   // Title
-  doc.fontSize(18).font("Helvetica-Bold").text("RGPV Semester Results", { align: "center" });
-  doc.moveDown(1.5);
+doc
+  .fontSize(26) // bigger and more prominent
+  .font("Helvetica-BoldOblique") // stylish bold font
+  .fillColor("#003366") // professional dark blue color
+  .text(`RGPV ${semval}th Semester Results`, {
+    align: "center",
+    underline: true,
+    lineGap: 6, // spacing between underline and text
+  });
+
+// doc.moveDown(0.5); // more space below the title
+
 
   // Collect all unique subjects
   const allSubjectsSet = new Set();
-  allStudents.forEach((stu) => stu.subjects.forEach((sub) => allSubjectsSet.add(sub.code)));
+  allStudents.forEach((stu) =>
+    stu.subjects.forEach((sub) => allSubjectsSet.add(sub.code))
+  );
   const allSubjects = Array.from(allSubjectsSet);
 
-  const columns = ["Roll No", ...allSubjects, "Result", "SGPA", "CGPA"];
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const colWidth = pageWidth / columns.length; // dynamic width
-  const startX = doc.page.margins.left;
-  let y = 50;
-  const rowHeight = 18;
+  // Add Name column
+  const columns = ["Roll No", "Name", ...allSubjects, "Result", "SGPA", "CGPA"];
+
+  // Table margins (smaller than document margin)
+  const tableMargin = 10;
+  const pageWidth = doc.page.width - tableMargin * 2;
+
+  // Column widths
+  const rollNoWidth = 70;
+  const nameWidth = 120;
+  const otherWidth =
+    (pageWidth - rollNoWidth - nameWidth) / (columns.length - 2);
+
+  const startX = tableMargin;
+  let y = doc.y;
+  const rowHeight = 20;
 
   function drawHeader() {
-    doc.rect(startX - 1, y - 1, colWidth * columns.length + 2, rowHeight + 2)
-      .fill("#d3d3d3").stroke();
-    doc.fillColor("black").fontSize(8).font("Helvetica-Bold");
+    doc.font("Helvetica-Bold").fontSize(8);
     columns.forEach((col, i) => {
-      doc.text(col, startX + i * colWidth, y, { width: colWidth, align: "center", ellipsis: true });
+      const colWidth =
+        i === 0 ? rollNoWidth : i === 1 ? nameWidth : otherWidth;
+
+      const colX =
+        startX +
+        columns.slice(0, i).reduce((a, c, j) => {
+          if (j === 0) return a + rollNoWidth;
+          if (j === 1) return a + nameWidth;
+          return a + otherWidth;
+        }, 0);
+
+      doc.rect(colX, y, colWidth, rowHeight).stroke();
+      doc.text(col, colX, y + 5, { width: colWidth, align: "center" });
     });
     y += rowHeight;
-    doc.font("Helvetica").fontSize(8);
+    doc.font("Helvetica").fontSize(7);
   }
 
   drawHeader();
 
   allStudents.forEach((stu, idx) => {
-    if (idx % 2 === 0)
-      doc.rect(startX - 1, y - 1, colWidth * columns.length + 2, rowHeight)
-        .fill("#f9f9f9").stroke();
-    doc.fillColor("black");
+    // Zebra row
+    if (idx % 2 === 0) {
+      doc.rect(startX, y, pageWidth, rowHeight).fill("#f5f5f5").stroke();
+      doc.fillColor("black");
+    }
 
-    doc.text(stu.rollNo || "-", startX + 0 * colWidth, y, { width: colWidth, align: "center" });
+    columns.forEach((col, i) => {
+      const colWidth =
+        i === 0 ? rollNoWidth : i === 1 ? nameWidth : otherWidth;
 
-    allSubjects.forEach((subCode, i) => {
-      const sub = stu.subjects ? stu.subjects.find((s) => s.code === subCode) : null;
-      const grade = sub ? sub.grade : "-";
-      doc.text(grade, startX + (i + 1) * colWidth, y, { width: colWidth, align: "center" });
+      const colX =
+        startX +
+        columns.slice(0, i).reduce((a, c, j) => {
+          if (j === 0) return a + rollNoWidth;
+          if (j === 1) return a + nameWidth;
+          return a + otherWidth;
+        }, 0);
+
+      let text = "-";
+      if (col === "Roll No") text = stu.rollNo || "-";
+      else if (col === "Name") text = stu.name || "-";
+      else if (col === "Result") text = stu.result || "-";
+      else if (col === "SGPA") text = stu.sgpa || "-";
+      else if (col === "CGPA") text = stu.cgpa || "-";
+      else {
+        const sub = stu.subjects
+          ? stu.subjects.find((s) => s.code === col)
+          : null;
+        text = sub ? sub.grade : "-";
+      }
+
+      doc.rect(colX, y, colWidth, rowHeight).stroke();
+      // Prevent wrapping for Name column
+      if (col === "Name") {
+        doc.text(text, colX + 2, y + 5, {
+          width: colWidth - 4,
+          ellipsis: true, // cut off with "..." if too long
+        });
+      } else {
+        doc.text(text, colX, y + 5, { width: colWidth, align: "center" });
+      }
     });
-
-    doc.text(stu.result || "-", startX + (allSubjects.length + 1) * colWidth, y, { width: colWidth, align: "center" });
-    doc.text(stu.sgpa || "-", startX + (allSubjects.length + 2) * colWidth, y, { width: colWidth, align: "center" });
-    doc.text(stu.cgpa || "-", startX + (allSubjects.length + 3) * colWidth, y, { width: colWidth, align: "center" });
 
     y += rowHeight;
 
@@ -80,7 +137,9 @@ async function generateSpreadsheetPDF(allStudents, filePath) {
   console.log(chalk.greenBright(`Spreadsheet PDF saved to ${filePath}`));
 }
 
+
 async function main(startRoll, endRoll, semester) {
+  semval = semester;
   const studentsRolls = generateRollNumbers(startRoll, endRoll);
   const allStudents = [];
 
