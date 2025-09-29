@@ -61,7 +61,8 @@ node app.js
 * Tesseract OCR is used for solving CAPTCHA
 * Requires active internet connection
 
----
+---<img width="980" height="329" alt="image" src="https://github.com/user-attachments/assets/2ad4ca97-ee59-4977-84fb-e27e001d6048" />
+
 
 ## Dependencies
 
