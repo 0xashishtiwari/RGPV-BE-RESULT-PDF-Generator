@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Result PDF</title>
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <!-- AOS (Animate On Scroll) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css"/>
+
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+</head>
+
+<body>
+
+    <!-- Background blobs -->
+    <div class="blob one"></div>
+    <div class="blob two"></div>
+
+    <h1 class="animate__animated animate__fadeInDown">Bulk Result PDF Engine</h1>
+
+    <form 
+        action="/generate" 
+        method="POST" 
+        data-aos="zoom-in" 
+        data-aos-duration="700"
+    >
+
+        <!-- College Code -->
+        <div class="field">
+            <input type="number" name="collegeCode" placeholder="0105" required maxlength="4"
+            oninput="limitDigits(this)">
+            <label class="floating-label">College Code</label>
+        </div>
+
+        <!-- Branch -->
+        <div class="field">
+            <select name="branch" required>
+                <option value="" disabled selected></option>
+                <option value="CS">CS</option>
+                <option value="IT">IT</option>
+                <option value="EC">EC</option>
+                <option value="ME">ME</option>
+                <option value="CE">CE</option>
+                <option value="EE">EE</option>
+                <option value="EX">EX</option>
+                <option value="AU">AU</option>
+            </select>
+            <label class="floating-label">Branch</label>
+        </div>
+
+        <!-- Year of Admission -->
+        <div class="field">
+            <input type="number" name="year" placeholder="2022" maxlength="4"
+            oninput="limitDigits(this)" required>
+            <label class="floating-label">Year of Admission</label>
+        </div>
+
+        <!-- Start Roll -->
+        <div class="field">
+            <input type="number" name="startNum" placeholder="1001" maxlength="4"
+            oninput="limitDigits(this)" required>
+            <label class="floating-label">Start Roll (Last Digits)</label>
+        </div>
+
+        <!-- End Roll -->
+        <div class="field">
+            <input type="number" name="endNum" placeholder="1062" maxlength="4"
+            oninput="limitDigits(this)" required>
+            <label class="floating-label">End Roll (Last Digits)</label>
+        </div>
+
+        <!-- Semester -->
+        <div class="field">
+            <select name="semester" required>
+                <option value="" disabled selected></option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+            <label class="floating-label">Semester</label>
+        </div>
+
+        <!-- Generate Button with Loader -->
+        <button id="generateBtn" type="submit">
+            <span class="btn-text">Generate PDF</span>
+            <span class="btn-loader"></span>
+        </button>
+
+    </form>
+<div id="warning-box" class="warning-box" style="display:none;">
+    ⚠️ Do NOT close or refresh this window.  
+    Your result PDF is being generated...
+</div>
+
+    <!-- Hacking Terminal Sidebar -->
+    <div id="status-sidebar">
+        <h3>📟 Live Status</h3>
+        <pre id="status-stream"></pre>
+    </div>
+
+    <!-- AOS Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <script>AOS.init();</script>
+
+    <!-- Limit digits function -->
+    <script>
+        document.querySelector("form").addEventListener("submit", function() {
+        document.getElementById("warning-box").style.display = "block";
+        });
+
+        function limitDigits(el) {
+            if (el.value.length > 4) {
+                el.value = el.value.slice(0, 4);
+            }
+        }
+
+        // Button loader
+        document.querySelector("form").addEventListener("submit", function() {
+            const btn = document.getElementById("generateBtn");
+            btn.disabled = true;
+            btn.querySelector(".btn-text").textContent = "Generating...";
+            btn.querySelector(".btn-loader").style.display = "inline-block";
+        });
+    </script>
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Once connected → add socket ID to form
+        socket.on("connect", () => {
+            const hidden = document.createElement("input");
+            hidden.type = "hidden";
+            hidden.name = "socketId";
+            hidden.value = socket.id;
+            document.querySelector("form").appendChild(hidden);
+        });
+
+        // Receive status logs
+        socket.on("status", (msg) => {
+            const stream = document.getElementById("status-stream");
+            stream.textContent += msg + "\n";
+            stream.scrollTop = stream.scrollHeight;
+        });
+    </script>
+
+</body>
+</html>

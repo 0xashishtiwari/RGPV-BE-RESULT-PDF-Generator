@@ -2,11 +2,23 @@ import chalk from "chalk";
 import create from "../result/browser.js";
 import fs from "fs";
 import PDFDocument from "pdfkit";
-let semval =0;
+import path from "path";
+import { fileURLToPath } from "url";
+import crypto from "crypto";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let semval = 0;
+
+// ---------------------------------------------------
+// Generate roll numbers
+// ---------------------------------------------------
 function generateRollNumbers(startRoll, endRoll) {
   const prefix = startRoll.slice(0, -3);
   const startNum = parseInt(startRoll.slice(-3));
   const endNum = parseInt(endRoll.slice(-3));
+
   const rolls = [];
   for (let i = startNum; i <= endNum; i++) {
     rolls.push(prefix + i.toString().padStart(3, "0"));
@@ -14,39 +26,41 @@ function generateRollNumbers(startRoll, endRoll) {
   return rolls;
 }
 
+// ---------------------------------------------------
+// Generate PDF
+// ---------------------------------------------------
 async function generateSpreadsheetPDF(allStudents, filePath) {
-  const doc = new PDFDocument({ margin: 36, size: "A4", layout: "landscape" });
-  doc.pipe(fs.createWriteStream(filePath));
-
-  // Title
-doc
-  .fontSize(26) // bigger and more prominent
-  .font("Helvetica-BoldOblique") // stylish bold font
-  .fillColor("#003366") // professional dark blue color
-  .text(`RGPV ${semval}th Semester Results`, {
-    align: "center",
-    underline: true,
-    lineGap: 6, // spacing between underline and text
+  const doc = new PDFDocument({
+    margin: 36,
+    size: "A4",
+    layout: "landscape",
   });
 
-// doc.moveDown(0.5); // more space below the title
+  const stream = fs.createWriteStream(filePath);
+  doc.pipe(stream);
 
+  // Title
+  doc
+    .fontSize(26)
+    .font("Helvetica-BoldOblique")
+    .fillColor("#003366")
+    .text(`RGPV ${semval}th Semester Results`, {
+      align: "center",
+      underline: true,
+      lineGap: 6,
+    });
 
-  // Collect all unique subjects
   const allSubjectsSet = new Set();
   allStudents.forEach((stu) =>
     stu.subjects.forEach((sub) => allSubjectsSet.add(sub.code))
   );
   const allSubjects = Array.from(allSubjectsSet);
 
-  // Add Name column
   const columns = ["Roll No", "Name", ...allSubjects, "Result", "SGPA", "CGPA"];
 
-  // Table margins (smaller than document margin)
   const tableMargin = 10;
   const pageWidth = doc.page.width - tableMargin * 2;
 
-  // Column widths
   const rollNoWidth = 70;
   const nameWidth = 120;
   const otherWidth =
@@ -64,10 +78,10 @@ doc
 
       const colX =
         startX +
-        columns.slice(0, i).reduce((a, c, j) => {
-          if (j === 0) return a + rollNoWidth;
-          if (j === 1) return a + nameWidth;
-          return a + otherWidth;
+        columns.slice(0, i).reduce((acc, c, j) => {
+          if (j === 0) return acc + rollNoWidth;
+          if (j === 1) return acc + nameWidth;
+          return acc + otherWidth;
         }, 0);
 
       doc.rect(colX, y, colWidth, rowHeight).stroke();
@@ -80,7 +94,6 @@ doc
   drawHeader();
 
   allStudents.forEach((stu, idx) => {
-    // Zebra row
     if (idx % 2 === 0) {
       doc.rect(startX, y, pageWidth, rowHeight).fill("#f5f5f5").stroke();
       doc.fillColor("black");
@@ -92,10 +105,10 @@ doc
 
       const colX =
         startX +
-        columns.slice(0, i).reduce((a, c, j) => {
-          if (j === 0) return a + rollNoWidth;
-          if (j === 1) return a + nameWidth;
-          return a + otherWidth;
+        columns.slice(0, i).reduce((acc, c, j) => {
+          if (j === 0) return acc + rollNoWidth;
+          if (j === 1) return acc + nameWidth;
+          return acc + otherWidth;
         }, 0);
 
       let text = "-";
@@ -105,18 +118,16 @@ doc
       else if (col === "SGPA") text = stu.sgpa || "-";
       else if (col === "CGPA") text = stu.cgpa || "-";
       else {
-        const sub = stu.subjects
-          ? stu.subjects.find((s) => s.code === col)
-          : null;
+        const sub = stu.subjects?.find((s) => s.code === col);
         text = sub ? sub.grade : "-";
       }
 
       doc.rect(colX, y, colWidth, rowHeight).stroke();
-      // Prevent wrapping for Name column
+
       if (col === "Name") {
         doc.text(text, colX + 2, y + 5, {
           width: colWidth - 4,
-          ellipsis: true, // cut off with "..." if too long
+          ellipsis: true,
         });
       } else {
         doc.text(text, colX, y + 5, { width: colWidth, align: "center" });
@@ -125,7 +136,6 @@ doc
 
     y += rowHeight;
 
-    // Page break
     if (y > doc.page.height - doc.page.margins.bottom - rowHeight) {
       doc.addPage();
       y = doc.page.margins.top;
@@ -134,44 +144,69 @@ doc
   });
 
   doc.end();
-  console.log(chalk.greenBright(`Spreadsheet PDF saved to ${filePath}`));
+
+  return new Promise((resolve, reject) => {
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+  });
 }
 
-
-async function main(startRoll, endRoll, semester) {
+// ---------------------------------------------------
+// MAIN FUNCTION WITH LIVE STATUS (NO EMOJIS)
+// ---------------------------------------------------
+async function main(startRoll, endRoll, semester, socket) {
   semval = semester;
-  const studentsRolls = generateRollNumbers(startRoll, endRoll);
+  const rolls = generateRollNumbers(startRoll, endRoll);
   const allStudents = [];
 
-  for (const roll of studentsRolls) {
-    console.log(chalk.yellow("Fetching:", roll));
+  for (const roll of rolls) {
+    if (socket) socket.emit("status", `Fetching ${roll}`);
+
     try {
       const data = await create(roll, semester);
+
       if (!data || !data.name) {
+        if (socket) socket.emit("status", `No data for ${roll}`);
         allStudents.push({
           rollNo: roll,
           subjects: [],
           result: "-",
           sgpa: "-",
-          cgpa: "-"
+          cgpa: "-",
         });
       } else {
+        if (socket) socket.emit("status", `Completed ${roll}`);
         allStudents.push(data);
       }
-    } catch (err) {
-      console.log(chalk.red("Failed to fetch data for", roll, err));
+
+    } catch {
+      if (socket) socket.emit("status", `Failed ${roll}`);
       allStudents.push({
         rollNo: roll,
         subjects: [],
         result: "-",
         sgpa: "-",
-        cgpa: "-"
+        cgpa: "-",
       });
     }
   }
 
-  await generateSpreadsheetPDF(allStudents, `Results_${semester}_Semester.pdf`);
-}
+  if (socket) socket.emit("status", "Writing PDF...");
 
+  const outputDir = path.join(__dirname, "output");
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+
+  const id = crypto.randomUUID();
+  const outputPath = path.join(
+    outputDir,
+    `Results_${semester}_Semester_${id}.pdf`
+  );
+
+  await generateSpreadsheetPDF(allStudents, outputPath);
+
+  if (socket) socket.emit("status", "PDF Completed");
+
+  return outputPath;
+}
 
 export default main;
