@@ -447,3 +447,80 @@ button:active {
     from { box-shadow: 0 0 6px rgba(59,130,246,0.6); }
     to   { box-shadow: 0 0 20px rgba(59,130,246,0.9); }
 }
+/* ===========================================
+   RESPONSIVE FIX — FORM ALWAYS VISIBLE
+=========================================== */
+
+/* Small Phones — max-width 480px */
+@media (max-width: 480px) {
+
+    body {
+        padding-top: 10px;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    h1 {
+        font-size: 26px;
+        text-align: center;
+        padding: 0 10px;
+    }
+
+    /* --- CRITICAL FIX --- */
+    form {
+        width: 95%;
+        max-width: 360px;
+        padding: 20px;
+        margin: 0 auto;
+        transform: none !important;
+    }
+
+    /* Blobs need shrinking or they overlap */
+    .blob {
+        width: 180px;
+        height: 180px;
+        filter: blur(70px);
+        opacity: 0.18;
+    }
+
+    /* Sidebar moves below the form */
+    #status-sidebar {
+        position: static;
+        width: 95%;
+        height: auto;
+        margin-top: 20px;
+    }
+
+    .warning-box {
+        width: 100%;
+    }
+}
+
+/* Medium Phones — max-width 768px */
+@media (max-width: 768px) {
+
+    body {
+        padding-top: 20px;
+    }
+
+    h1 {
+        font-size: 32px;
+        text-align: center;
+    }
+
+    /* --- CRITICAL FIX --- */
+    form {
+        width: 85%;
+        max-width: 400px;
+        padding: 26px;
+        margin: 0 auto;
+        transform: none !important;
+    }
+
+    #status-sidebar {
+        position: static;
+        width: 90%;
+        height: auto;
+        margin-top: 25px;
+    }
+}
